@@ -155,26 +155,78 @@ cat("Individuals :", nInd, "\n")
 cat("Haplotypes  :", nrow(haplo), "\n")
 cat("Markers     :", ncol(haplo), "\n\n")
 
+
 ############################################################
-# Step 8. Import founder population
+# Step 8. Recover original sample IDs
+############################################################
+
+sampleIDs <- colnames(gt)
+
+cat("First sample IDs:\n")
+
+print(
+  head(sampleIDs)
+)
+
+cat("\nNumber of IDs:",
+    length(sampleIDs),
+    "\n")
+
+cat("Unique IDs:",
+    length(unique(sampleIDs)),
+    "\n\n")
+
+
+############################################################
+# Step 9. Create founder pedigree
+############################################################
+
+ped <- data.frame(
+  
+  id = sampleIDs,
+  
+  mother = rep(0, nInd),
+  
+  father = rep(0, nInd),
+  
+  stringsAsFactors = FALSE
+  
+)
+
+
+############################################################
+# Step 10. Import founder population
 ############################################################
 
 founderPop <- importHaplo(
   
   haplo = haplo,
+  
   genMap = genMap,
-  ploidy = 2
+  
+  ploidy = 2,
+  
+  ped = ped
   
 )
 
+
 ############################################################
-# Step 9. Check founder population
+# Step 11. Check founder population
 ############################################################
 
 print(founderPop)
 
+cat("\nPedigree:\n")
+
+print(
+  head(
+    getPed(founderPop)
+  )
+)
+
 ############################################################
-# Step 10. Save founder population
+# Step 12. Save founder population
 ############################################################
 
 saveRDS(founderPop, SavedFile)
