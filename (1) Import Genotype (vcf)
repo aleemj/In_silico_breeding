@@ -14,13 +14,14 @@ rm(list = ls())
 library(vcfR)
 library(AlphaSimR)
 
+GenotypeFile <- "path/file.vcf.gz"
+SavedFile <- <- "path/file.rds"
+
 ############################################################
 # Step 1. Read phased VCF
 ############################################################
 
-vcf <- read.vcfR(
-  "/Users/adrianlee/Library/CloudStorage/OneDrive-NationalUniversityofSingapore/NUS/Breeding/ISB/BEAGLE/arugula_100k_phased.vcf.gz"
-)
+vcf <- read.vcfR(GenotypeFile)
 
 ############################################################
 # Step 2. Extract marker information
@@ -175,10 +176,4 @@ print(founderPop)
 # Step 10. Save founder population
 ############################################################
 
-saveRDS(
-  
-  founderPop,
-  
-  "/Users/adrianlee/Library/CloudStorage/OneDrive-NationalUniversityofSingapore/NUS/Breeding/ISB/arugula_founderPop_100k.rds"
-  
-)
+saveRDS(founderPop, SavedFile)
