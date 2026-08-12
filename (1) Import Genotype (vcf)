@@ -8,6 +8,7 @@
 ############################################################
 
 #IMPORTANT: VCF FILE MUST BE PHASED (BEAGLE) PRIOR TO IMPORT INTO R
+#PLEASE UPDATE FILE PATH FOR GENOTYPEFILE AND SAVEDFILE BEFORE PROCEEDING
 
 rm(list = ls())
 
