@@ -1,0 +1,176 @@
+############################################################
+# PACKAGES
+############################################################
+
+library(PopVar)
+library(rrBLUP)
+library(dplyr)
+library(data.table)
+library(AlphaSimR)
+
+############################################################
+# INPUT FILES
+############################################################
+
+genotypeFile <- "/Users/adrianlee/Library/CloudStorage/OneDrive-NationalUniversityofSingapore/NUS/Breeding/ISB/arugula_founderPop_100k.rds"
+phenotypeFile <- "/Users/adrianlee/Library/CloudStorage/OneDrive-NationalUniversityofSingapore/NUS/Breeding/ISB/Genomic Mating (Actual)/phenotype.csv"
+WD <- "/Users/adrianlee/Library/CloudStorage/OneDrive-NationalUniversityofSingapore/NUS/Breeding/ISB/Genomic Mating (Actual)"
+breedingplancsv <- "arugula_breeding_plan_top50.csv"
+
+############################################################
+# READ GENOTYPE / PHENOTYPE
+############################################################
+
+founderPop <- readRDS(genotypeFile)
+geno <- pullSegSiteGeno(founderPop)
+pheno <- fread(phenotypeFile, data.table = FALSE)
+
+############################################################
+# CHECK ACCESSION IDs
+############################################################
+
+sum(rownames(geno) %in% pheno$Sample_ID)
+sum(pheno$Sample_ID %in% rownames(geno))
+
+############################################################
+# STOP IF IDs DO NOT MATCH
+############################################################
+
+if(!all(pheno$Sample_ID %in% rownames(geno))){
+  stop(
+    "Some phenotype IDs are missing from genotype data."
+  )
+}
+
+############################################################
+# MATCH PHENOTYPES TO GENOTYPES
+############################################################
+
+pheno <- pheno[match(rownames(geno), pheno$Sample_ID),]
+
+############################################################
+# VERIFY
+############################################################
+
+stopifnot(all(rownames(geno) == pheno$Sample_ID))
+
+############################################################
+# EXTRACT MARKER MATRIX
+# CONVERT TO PopVar -1/0/1 CODING
+############################################################
+
+M <- as.matrix(geno[, -1])
+storage.mode(M) <- "numeric"
+M.popvar <- M - 1
+
+############################################################
+# CREATE PopVar GENOTYPE MATRIX
+############################################################
+
+G.in <- cbind(ID = rownames(geno), M.popvar)
+G.in <- as.matrix(G.in)
+
+############################################################
+# PHENOTYPE
+############################################################
+
+y.in <- data.frame(ID = pheno$Sample_ID, adj_TFW = as.numeric(pheno$adj_TFW), stringsAsFactors = FALSE)
+
+############################################################
+# CREATE GENETIC MAP
+############################################################
+
+markerNames <- colnames(M)
+chr <- sub(":.*", "", markerNames)
+
+position <- as.numeric(sub(".*:", "", markerNames))
+map.in <- data.frame(
+  marker = markerNames,
+  chromosome = chr,
+  position = position / 1e6
+)
+
+############################################################
+# PRELIMINARY PARENT SELECTION -> Example: top 150 phenotyped individuals
+############################################################
+
+candidateParents <- pheno %>%
+  arrange(
+    desc(adj_TFW)
+  ) %>%
+  slice_head(
+    n = 150
+  ) %>%
+  pull(Sample_ID)
+
+############################################################
+# GENERATE CROSSING TABLE
+############################################################
+
+crossing.table <- t(combn(candidateParents, 2))
+crossing.table <- as.data.frame(crossing.table, stringsAsFactors = FALSE)
+colnames(crossing.table) <- c("Par1", "Par2")
+dim(crossing.table)
+
+############################################################
+# POPVAR
+############################################################
+
+set.seed(123)
+setwd(WD)
+out <- pop.predict(
+  G.in = G.in,
+  y.in = y.in,
+  map.in = map.in,
+  crossing.table = crossing.table,
+  nInd = 200,
+  nSim = 10,
+  nCV.iter = 25,
+  models = "rrBLUP",
+  #min.maf = 0.05,
+  #mkr.cutoff = 0.10,
+  entry.cutoff = 0.10,
+  impute = "EM",
+  return.raw = FALSE
+)
+
+saveRDS(out, file = file.path(WD,"PopVar_full_rrBLUP.rds"))
+
+############################################################
+# EXTRACT PREDICTIONS
+############################################################
+
+pred <- out$predictions
+
+############################################################
+# RANK CROSSES
+############################################################
+
+crossResults <- pred %>%
+  arrange(
+    desc(mu.sp_high)
+  )
+
+breedingPlan <- crossResults %>%
+  transmute(
+    Par1 = unlist(Par1),
+    Par2 = unlist(Par2),
+    midPar.Pheno = unlist(midPar.Pheno),
+    midPar.GEBV = unlist(midPar.GEBV),
+    pred.mu = unlist(pred.mu),
+    pred.mu_sd = unlist(pred.mu_sd),
+    pred.varG = unlist(pred.varG),
+    pred.varG_sd = unlist(pred.varG_sd),
+    mu.sp_low = unlist(mu.sp_low),
+    mu.sp_high = unlist(mu.sp_high)
+  )
+
+############################################################
+# SAVE BREEDING PLAN
+############################################################
+
+write.csv(
+  breedingPlan,
+  breedingplancsv,
+  row.names = FALSE
+)
