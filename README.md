@@ -28,3 +28,8 @@ PopVar Genomic Mating.R
 - Code for simulation of progeny genotype and prediction of phenotype. 
 - Provides crossing simulation of SPECIFIED crossing plan. 
 - Requires saved genomic selection model. 
+
+Example Data.zip
+- Compressed file containing correctly formatted example genotype and phenotype file for running described code.
+Genotype file: arugula_100k_phased.vcf
+Phenotype file: Arugula_798.xlsx
